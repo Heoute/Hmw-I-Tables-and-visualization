@@ -1,0 +1,245 @@
+---
+title: "OECD Agricultural Outlook"
+format: html
+editor: visual
+author: "Jiahong JIANG"
+---
+
+------------------------------------------------------------------------
+
+## Motivation
+
+Agriculture is crucial to ensuring food security globally and supporting economic development. Understanding crop yields and trends among different countries and commodities is important for farmers, researchers, and policymakers to make informed decisions. In this analysis we will explore crop yield trends for the important agricultural commodities of corn, wheat, rice, and all other coarse grains for the years 2010 - 2032. In addition, we will include trends for Russia, Ukraine, and the EU, which are major agricultural producers in the world market.
+
+The rationale for this analysis is to see how production of the major crops is changing over time, what the factors are of these changes, and how the countries compare in yielding these particular crops. Time series analysis are critical for interest groups to make forecasts of agricultural production trend indicators and ultimately determine what actions are necessary to maintain food security.
+
+------------------------------------------------------------------------
+
+## Data Description:
+
+The data referenced in this analysis, the **OECD-FAO Agricultural Outlook**, analyses the projection and assessment of major temperate-zone agricultural commodity markets for the period 2023-2032.
+
+Key columns in the dataset:
+
+-   **Country**: the name of the country or region for which the data is recorded (e.g. Russia, Ukraine, European Union)
+-   **Time**: the year the crop yield was recorded (years recorded are from 2010 onwards up to 2032)
+-   **Commodity**: the recorded crop, such as **corn**, **wheat**, **rice**, or **other coarse grains**
+-   **OBS_VALUE**: the recorded crop yield value, typically in **tonnes**, **kilograms per person**, or **tonnes per hectare**;
+
+thus, depending on the metric, the value might vary. This dataset provides a good dataset to understand how agricultural yields change through time, for specific products within certain regions. Having access to an understanding of agricultural commodities is useful in potential considerations of how agricultural policies have developed and in what types of challenges major food producers are facing. Visualization and analysis of the dataset will aid in discussing future policy developments and ensure sustainable food production continues.
+
+------------------------------------------------------------------------
+
+## Data Processing
+
+```{r , warning=FALSE,echo=FALSE}
+library(readxl)
+library(tidyverse)
+library(knitr)
+data <- read_excel("./DATA/data.xlsx")
+head(data)
+data_long <- data %>%
+  pivot_longer(
+    cols = `2010`:`2032`,
+    names_to = "Time",  
+    values_to = "OBS_VALUE" 
+  ) %>%
+  rename(
+    Country = "Referencearea", 
+    Commodity = "Kind"
+  )
+data_wide <- data_long %>%
+  pivot_wider(
+    names_from = "Commodity", 
+    values_from = "OBS_VALUE", 
+    names_sort = TRUE
+  )
+head(data_wide)
+```
+
+------------------------------------------------------------------------
+
+## Data Visualization
+
+### 1. Russia's crop yield for each commodity
+
+This figure displays trends in Crop Yield for Corn, Other coarse grains, Rice, and Wheat for Russia from 2010-2032. The time series shows that Wheat yield is highest on all three grain commodities, then Other coarse grains, and Corn and Rice have the lowest yield. Corn yield remains almost constant over the years while the Wheat yield appears to gradually increase over the years showing its importance in agricultural outputs in Russia it is clear the country depends more on wheat than other crops.
+
+```{r, warning=FALSE,echo=FALSE}
+library(ggplot2)
+data_russia <- data_long %>%
+  filter(Country == "Russia")
+ggplot(data_russia, aes(x = Time, y = OBS_VALUE, color = Commodity, group = Commodity)) +
+  geom_line() +
+  facet_wrap(~ Commodity, ncol = 1) +
+  labs(
+    title = "Russia's Crop Yield by Commodity (2010-2032)",
+    x = "Year",
+    y = "Yield",
+    color = "Commodity"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 8)
+  )
+
+```
+
+------------------------------------------------------------------------
+
+### 2. Corn's yield for each country
+
+This figure compares the Corn yield for a number of countries, including Russia, Ukraine, European Union, Norway, Switzerland, and United Kingdom. Data shows that Ukraine and Russia have the highest Corn yields, and Ukraine's yield grows steadily to 2032 and peaks in 2032. Norway and United Kingdom have very low yields for Corn that are nearly constant over the years.The European Union yield is more stable but lower and modest for the time series.
+
+```{r, warning=FALSE,echo=FALSE}
+data_corn <- data_long %>%
+  filter(Commodity == "corn")
+ggplot(data_corn, aes(x = Time, y = OBS_VALUE, color = Country, group = Country)) +
+  geom_line() +
+  facet_wrap(~ Country, ncol = 1) +
+  labs(
+    title = "Corn Yield by Country (2010-2032)",
+    x = "Year",
+    y = "Yield",
+    color = "Country"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 10)
+  )
+```
+
+------------------------------------------------------------------------
+
+### 3. Crop Yield Comparison by Country in 2020
+
+This bar chart compares the crop yields of countries and commodities in 2020. Switzerland has a significantly higher yield in Wheat compared to other countries and commodities. Russia has a higher yield for Wheat and relatively low yield of Corn. Ukraine has a significant corn yield, next to Russia, and is a regional producer. Norway, the United Kingdom have the least yield in all and especially with Corn and Rice.
+
+```{r, warning=FALSE,echo=FALSE}
+# Filter data for the year 2020
+data_2020 <- data_long %>%
+  filter(Time == "2020")
+
+# Plot crop yield comparison by country for 2020
+ggplot(data_2020, aes(x = Country, y = OBS_VALUE, fill = Commodity)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Crop Yield Comparison by Country in 2020",
+    x = "Country",
+    y = "Yield"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+------------------------------------------------------------------------
+
+### 4.Animation
+This animation illustrates how agricultural production for different commodities evolves over time across countries.
+```{r, warning=FALSE,echo=FALSE}
+
+library(gganimate) 
+library(gifski)    
+
+# Ensure 'Time' is an integer (numeric) variable to support frame-by-frame animation
+data_long$Time <- as.integer(data_long$Time)
+
+# Define the ggplot object with animated transition by time
+p <- ggplot(data_long, aes(x = Country, y = OBS_VALUE, fill = Country)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~Commodity, scales = "free_y") +
+  labs(title = "Agricultural Production by Country ({closest_state})",
+       y = "Production (OBS_VALUE)",
+       x = "Country") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  transition_states(Time, transition_length = 1, state_length = 1) +
+  ease_aes("linear")
+
+# Save the animated plot to a gif file instead of rendering inline because it can't stop failing using animation
+anim_save("agriculture.gif", p)  # Output: agriculture.gif in working directory
+
+```
+![](agriculture.gif)
+
+------------------------------------------------------------------------
+
+## Appendix
+
+```{r, eval=FALSE}
+library(readxl)
+library(tidyverse)
+library(knitr)
+data <- read_excel("data.xlsx")
+head(data)
+data_long <- data %>%
+  pivot_longer(
+    cols = `2010`:`2032`,  
+    names_to = "Time", 
+    values_to = "OBS_VALUE"  
+  ) %>%
+  rename(
+    Country = "Referencearea", 
+    Commodity = "Kind" 
+  )
+
+data_wide <- data_long %>%
+  pivot_wider(
+    names_from = "Commodity", 
+    values_from = "OBS_VALUE",  
+    names_sort = TRUE
+  )
+
+head(data_wide)
+
+library(ggplot2)
+
+# 1. Russia's crop yield for each commodity
+data_russia <- data_long %>%
+  filter(Country == "Russia")
+ggplot(data_russia, aes(x = Time, y = OBS_VALUE, color = Commodity, group = Commodity)) +
+  geom_line() +
+  facet_wrap(~ Commodity, ncol = 1) +
+  labs(
+    title = "Russia's Crop Yield by Commodity (2010-2032)",
+    x = "Year",
+    y = "Yield",
+    color = "Commodity"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 8)
+  )
+
+# 2. Corn's yield for each country
+data_corn <- data_long %>%
+  filter(Commodity == "corn")
+ggplot(data_corn, aes(x = Time, y = OBS_VALUE, color = Country, group = Country)) +
+  geom_line() +
+  facet_wrap(~ Country, ncol = 1) +
+  labs(
+    title = "Corn Yield by Country (2010-2032)",
+    x = "Year",
+    y = "Yield",
+    color = "Country"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 10)
+  )
+
+# 3. Crop Yield Comparison by Country in 2020
+data_2020 <- data_long %>%
+  filter(Time == "2020")
+
+# Plot crop yield comparison by country for 2020
+ggplot(data_2020, aes(x = Country, y = OBS_VALUE, fill = Commodity)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Crop Yield Comparison by Country in 2020",
+    x = "Country",
+    y = "Yield"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
